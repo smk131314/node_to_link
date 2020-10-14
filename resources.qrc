@@ -1,0 +1,10 @@
+<RCC>
+    <qresource prefix="/plugins/node_to_link" >
+        <file>icon.png</file>
+        <file>icon_add.png</file>
+        <file>icon_delete.png</file>
+        <file>icon_move.png</file>
+        <file>icon_heading.png</file>
+        <file>icon_check.png</file>
+    </qresource>
+</RCC>
