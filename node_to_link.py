@@ -266,10 +266,13 @@ class Node2Link:
 
     ## layer 선택 함수, qgis의 layer와, 플러그인의 로딩 시점 차이 때문에 layer 선택 확인 필요
     def layer_selector(self):
-        self.node_layer = QgsProject.instance().mapLayer('alley_node_92ba605d_66c9_4da0_9045_8f9a086e5145')  # DB 레이어
-        self.link_layer = QgsProject.instance().mapLayer('alley_link_459975fb_9adf_420d_b135_77c1577269f9')  # DB 레이어
-        # self.node_layer = QgsProject.instance().mapLayer('alley_node_7ba9c802_33d6_4a6a_9ddc_856bd360da0c')      # local test용 레이어
-        # self.link_layer = QgsProject.instance().mapLayer('alley_link_c4d7f0f1_86cf_46c3_875b_848deea58e73')      # local test용 레이어
+        # 프로젝트마다 layer 달라질 수 있어서 레이어 이름으로 선택하는 것으로 수정.
+        nodelayer_by_name = QgsProject.instance().mapLayersByName('alley_node')
+        linklayer_by_name = QgsProject.instance().mapLayersByName('alley_link')
+
+        self.node_layer = QgsProject.instance().mapLayer(nodelayer_by_name[0].id())  # DB 레이어
+        self.link_layer = QgsProject.instance().mapLayer(linklayer_by_name[0].id())  # DB 레이어
+
         if self.node_layer == None:
             QMessageBox.information(self.iface.mainWindow(), "레이어 설정", "노드 레이어 설정실패")
             # ToDo! self kill ???
@@ -378,7 +381,7 @@ class Node2Link:
         feat.setAttribute(1, from_node)
         feat.setAttribute(2, to_node)
         # status : check complete 상태로 추가
-        feat.setAttribute(3, 1)
+        # feat.setAttribute(3, 1)               // link 수정상태 기본 0 으로 수정함.
 
         try:
             with edit(self.link_layer):
@@ -451,18 +454,10 @@ class Node2Link:
         if self.move_node_action.isChecked() == True:
             self.changeTool(self.move_node_action)
             print("node정위치 작업이 시작되었습니다.")
-
-            self.deselectAll()
-            ## node_layer 활성화
-            iface.setActiveLayer(self.node_layer)
-
-            ## edit mode 시작
-            self.node_layer.startEditing()
-
-            # move feature 버튼 call
-            # https://gis.stackexchange.com/questions/141371/implementing-add-feature-action-using-pyqgis?rq=1
-            iface.actionMoveFeature().trigger()
-
+            
+            # node 이동
+            self.moveNode()
+            
             ## node 레이어에 feature geometry changed 이벤트 함수 연결
             # node 이동 시, link 자동 수정
             self.node_layer.geometryChanged.connect(self.updateLink)
@@ -526,9 +521,21 @@ class Node2Link:
                     print(repr(err))
 
         ## node수정작업 연속으로 하기위해 다시 node_layer 활성화
-        iface.setActiveLayer(self.node_layer)
-        iface.actionMoveFeature().trigger()
+        self.moveNode()
 
+
+    # node를 move mode로 바꿔주는 함수
+    def moveNode(self):
+        self.deselectAll()
+        ## node_layer 활성화
+        iface.setActiveLayer(self.node_layer)
+
+        ## edit mode 시작
+        self.node_layer.startEditing()
+
+        # move feature 버튼 call
+        # https://gis.stackexchange.com/questions/141371/implementing-add-feature-action-using-pyqgis?rq=1
+        iface.actionMoveFeature().trigger()
 
     ## heading 입력 버튼 run 함수
     def run_heading_action(self):
@@ -628,11 +635,16 @@ class Node2Link:
     ## 기존에 선택됐던 피쳐 선택 취소하기 위한 deselect action trigger 함수
     # https://gis.stackexchange.com/questions/155709/where-is-the-qgis-api-action-for-deselect
     def deselectAll(self):
-        for a in iface.attributesToolBar().actions():
-            if a.objectName() == 'mActionDeselectAll':
-                a.trigger()
-                break
+        # for a in iface.attributesToolBar().actions():
+        #     if a.objectName() == 'mActionDeselectAll':
+        #         a.trigger()
+        #         break
 
+        # deselect함수 수정
+        # https://docs.qgis.org/testing/en/docs/pyqgis_developer_cookbook/vector.html#selecting-features
+        # To clear the selection: 
+        self.node_layer.removeSelection()       
+        self.link_layer.removeSelection()
 
     ## Original Run method
     """
